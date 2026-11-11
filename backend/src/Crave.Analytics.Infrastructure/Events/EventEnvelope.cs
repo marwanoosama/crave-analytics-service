@@ -29,7 +29,7 @@ public sealed record EventEnvelope(
         }
 
         return envelope is not null
-            && envelope.EventId.Length > 0
-            && envelope.EventType.Length > 0;
+            && !string.IsNullOrEmpty(envelope.EventId)
+            && !string.IsNullOrEmpty(envelope.EventType);
     }
 }

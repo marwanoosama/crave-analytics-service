@@ -136,20 +136,28 @@ password) — covered by the client's native automatic recovery; to verify by ha
 
 ## Phase 3 — `order.placed` handler + aggregate upsert
 
-Goal: the single write path — atomic day-grained rollup.
+Goal: the single write path — atomic day-grained rollup. — ✅ done
 
-1. `Api/Modules/Analytics/Services/OrderPlacedHandler.cs` — validates the payload shape
-   (restaurantId, subtotal, currency, placedAt), derives `date` (UTC `YYYY-MM-DD` from
-   `placedAt`), delegates to the repository.
-2. `Api/Modules/Analytics/Repositories/RestaurantDayRepository.cs` —
+1. ✅ `Api/Modules/Analytics/Services/OrderPlacedHandler.cs` — validates the payload shape
+   (`restaurantId > 0`, `subtotal >= 0`, `currency`, `placedAt`), derives `date` (UTC
+   `YYYY-MM-DD` from `placedAt`), delegates to the repository. Shape violations throw
+   `AppException` ⇒ consumer dead-letters. `EventType => "order.placed"` is the single
+   constant definition (CLAUDE.md §10 — no magic strings).
+2. ✅ `Api/Modules/Analytics/Repositories/RestaurantDayRepository.cs` —
    `FindOneAndUpdate` upsert: `$inc {orders_count:1, revenue_sum:subtotal}` +
    `$set {currency, updated_at}`, filter `(restaurant_id, date)`, `IsUpsert = true`
-   (atomic — competing consumers safe).
-3. Register handler for `order.placed` in the registry.
+   (atomic — competing consumers safe; equality filter fields seed the new doc).
+3. ✅ Registered in the registry (`AddSingleton<IEventHandler, OrderPlacedHandler>`).
 
-**Acceptance:** publish an `order.placed` event → `agg_restaurant_day` row appears/merges
-with correct sums; replay the same event (same `eventId`) → counts unchanged; two events
-same restaurant+day → single row, incremented twice.
+**Acceptance:** ✅ verified — two `order.placed` events for restaurant 42, same UTC day →
+one `agg_restaurant_day` row merged: `orders_count: 2`, `revenue_sum: 300000` (2 × 150000),
+`currency: "EGP"`; replaying the first event's exact `eventId` (payload `subtotal: 999999`)
+→ dedupe caught it, counts unchanged; handler-shape failure (missing fields) → Error log
++ DLQ; bug found & fixed during acceptance: envelopes missing `eventId`/`eventType`
+deserialize to null fields without `JsonException` — `TryParse` now null-safe, so the
+"Unparseable envelope" warning logs correctly before the DLQ reject (previously an NRE
+bypassed logging; the DLQ routing itself was already correct). Two events for the same
+restaurant+day → single row, incremented twice.
 
 ---
 

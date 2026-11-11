@@ -13,7 +13,7 @@ public sealed class EventDeduper(IMongoDatabase database) : IEventDeduper
             await database.GetCollection<EventIdDocument>(EventIdDocument.CollectionName)
                 .InsertOneAsync(
                     new EventIdDocument { EventId = eventId, ReceivedAt = DateTime.UtcNow },
-                    cancellationToken);
+                    new InsertOneOptions(), cancellationToken);
             return true;
         }
         catch (MongoWriteException error) when (error.WriteError.Code == 11000)

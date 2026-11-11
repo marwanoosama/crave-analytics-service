@@ -1,5 +1,6 @@
 using Crave.Analytics.Api.Health;
 using Crave.Analytics.Api.Modules.Analytics.Repositories;
+using Crave.Analytics.Api.Modules.Analytics.Services;
 using Crave.Analytics.Common.Messaging;
 using Crave.Analytics.Infrastructure.Config;
 using Crave.Analytics.Infrastructure.Events;
@@ -26,6 +27,8 @@ builder.Services.AddSingleton(new ConsumerOptions(
     Env.RabbitDlx, Env.RabbitDlq, (ushort)Env.RabbitPrefetch));
 builder.Services.AddSingleton<AmqpConsumer>();
 builder.Services.AddSingleton<IEventDeduper, EventDeduper>();
+builder.Services.AddSingleton<RestaurantDayRepository>();
+builder.Services.AddSingleton<IEventHandler, OrderPlacedHandler>();
 builder.Services.AddSingleton<EventHandlerRegistry>();
 builder.Services.AddHostedService<OrderEventsConsumerService>();
 
