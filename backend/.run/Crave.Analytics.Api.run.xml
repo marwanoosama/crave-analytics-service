@@ -8,7 +8,7 @@
     <envs>
       <env name="PORT" value="5000" />
       <env name="ASPNETCORE_ENVIRONMENT" value="development" />
-      <env name="ACCESS_SECRET" value="change-me" />
+      <env name="ACCESS_SECRET" value="crave-dev-shared-access-secret-0001" />
       <env name="CORS_ORIGINS" value="http://localhost:3000" />
       <env name="MONGO_URL" value="mongodb://localhost:27017" />
       <env name="MONGO_DATABASE" value="crave_analytics" />

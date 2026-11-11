@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace Crave.Analytics.Infrastructure.Events;
@@ -16,7 +17,7 @@ public sealed record EventEnvelope(
         PropertyNameCaseInsensitive = true,
     };
 
-    public static bool TryParse(byte[] body, out EventEnvelope? envelope)
+    public static bool TryParse(byte[] body, [NotNullWhen(true)] out EventEnvelope? envelope)
     {
         envelope = null;
         try

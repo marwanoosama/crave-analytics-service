@@ -2,7 +2,9 @@ using Crave.Analytics.Api.Health;
 using Crave.Analytics.Api.Modules.Analytics.Repositories;
 using Crave.Analytics.Api.Modules.Analytics.Services;
 using Crave.Analytics.Common.Messaging;
+using Crave.Analytics.Infrastructure.Auth;
 using Crave.Analytics.Infrastructure.Config;
+using Crave.Analytics.Infrastructure.CoreClient;
 using Crave.Analytics.Infrastructure.Events;
 using Crave.Analytics.Infrastructure.Http;
 using Crave.Analytics.Infrastructure.Mongo;
@@ -20,6 +22,16 @@ builder.Logging.AddJsonConsole(options => options.UseUtcTimestamp = true);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(Env.CorsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 builder.Services.AddMongo();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("core", client =>
+{
+    client.BaseAddress = new Uri(Env.CoreBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+builder.Services.AddSingleton<JwtVerifier>();
+builder.Services.AddSingleton<CoreClient>();
+builder.Services.AddSingleton<RbacClient>();
+builder.Services.AddSingleton<PermissionCacheService>();
 builder.Services.AddTransient<ErrorHandlerMiddleware>();
 builder.Services.AddTransient<CorrelationIdMiddleware>();
 builder.Services.AddSingleton(new ConsumerOptions(
@@ -42,6 +54,14 @@ app.UseCors();
 
 app.MapGet("/", () => ApiResponse.SendSuccess("crave-analytics-service"));
 app.MapHealthEndpoints();
+
+// Phase 5 replaces this stub body with the real read path; the filter chain
+// is final (authenticate → restaurant member → rbac).
+app.MapGet("/api/analytics/restaurants/{restaurantId}/days", () =>
+        ApiResponse.SendSuccess("phase 4 filter chain wired"))
+    .AddEndpointFilter<AuthenticateFilter>()
+    .AddEndpointFilter<RequireRestaurantMemberFilter>()
+    .AddEndpointFilter<RbacFilter>();
 
 // Index bootstrap is the DDL migration — fail fast if Mongo is unreachable.
 await Indexes.EnsureAsync(app.Services.GetRequiredService<IMongoDatabase>());

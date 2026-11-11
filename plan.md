@@ -163,28 +163,48 @@ restaurant+day → single row, incremented twice.
 
 ## Phase 4 — Auth + RBAC + core-client
 
-Goal: same JWT contract and permission resolution as order-service.
+Goal: same JWT contract and permission resolution as order-service. — ✅ done
 
-1. `Infrastructure/Auth/JwtUser.cs` — typed claims record (`userId, role, email,
-   restaurantId?, restaurantRole?, branchIds?`).
-2. `Infrastructure/Auth/JwtVerifier.cs` — HS256 `ACCESS_SECRET`,
-   `MapInboundClaims = false`, cookie `access_token` first then `Authorization: Bearer`.
-3. `Infrastructure/Auth/AuthenticateFilter.cs` — 401 on failure; stores `JwtUser` in
-   `HttpContext.Items`.
-4. `Infrastructure/Auth/RequireRestaurantMemberFilter.cs` — `system_admin` bypass;
-   `restaurant_user.restaurantId` must equal the route param (else 403).
-5. `Infrastructure/CoreClient/CoreClient.cs` — `IHttpClientFactory` + `api-key` header +
-   retry (3 attempts, backoff — mirrors `pkg/utils/retry.ts`); propagates
-   `X-CorrelationId`.
-6. `Infrastructure/CoreClient/RbacClient.cs` — `GET /api/internal/rbac/permissions?role=`.
-7. `Infrastructure/Auth/PermissionCacheService.cs` — in-process role→permissions cache,
-   TTL `RBAC_CACHE_TTL_SEC` (5 min default).
-8. `Infrastructure/Auth/RbacFilter.cs` — `system_admin` bypass; `restaurant_user` →
-   cached permission check `analytics:read`; else 403. Core unreachable ⇒ 503.
+1. ✅ `Infrastructure/Auth/JwtUser.cs` — typed claims record
+   (`userId, role, email, restaurantId?, restaurantRole?, branchIds?`) + `SystemRole`
+   constants (`system_admin`, `restaurant_user` — in sync with core's enum).
+2. ✅ `Infrastructure/Auth/JwtVerifier.cs` — `JsonWebTokenHandler` HS256 with
+   `ACCESS_SECRET`, `MapInboundClaims = false`, no issuer/audience validation (core
+   doesn't sign those — same as `jwt.verify` in the siblings), `ClockSkew.Zero`.
+3. ✅ `Infrastructure/Auth/AuthenticateFilter.cs` — cookie `access_token` first, then
+   `Authorization: Bearer`; failure ⇒ 401 `{error:"User not authenticated"}`; stores
+   `JwtUser` in `HttpContext.Items` (the `req.user` analogue).
+4. ✅ `Infrastructure/Auth/RequireRestaurantMemberFilter.cs` — `system_admin` bypass;
+   `restaurantId` claim must equal the route param, else 403 `Permission denied`.
+5. ✅ `Infrastructure/CoreClient/CoreClient.cs` — `IHttpClientFactory` (`"core"` named
+   client, 5 s timeout) + `api-key` header + X-CorrelationId propagation +
+   `pkg/utils/retry.ts` semantics: 3 attempts, 50 ms doubling to 500 ms; network errors
+   and 5xx retry, other statuses fail fast; caller cancellation never swallowed.
+6. ✅ `Infrastructure/CoreClient/RbacClient.cs` —
+   `GET /api/internal/rbac/permissions?role=` → `{role, permissions:["resource:action"]}`.
+7. ✅ `Infrastructure/Auth/PermissionCacheService.cs` — in-process role → permissions
+   cache, TTL `RBAC_CACHE_TTL_SEC`, failures not cached (core's
+   `permission-cache.service.ts` analogue), thread-safe.
+8. ✅ `Infrastructure/Auth/RbacFilter.cs` — `system_admin` bypass; `restaurant_user`
+   looks up permissions **by `restaurantRole`** (verified against core's
+   `lib/auth/rbac.ts`); `analytics:read` required; anything else ⇒ 403; core down with
+   no cached grant ⇒ 503 `"Core service unavailable"`.
+9. ✅ Program wiring: `AddHttpContextAccessor`, named `"core"` HttpClient, `JwtVerifier`,
+   `CoreClient`, `RbacClient`, `PermissionCacheService`; the Phase 5 endpoint mapped
+   with the final filter chain (authenticate → member → rbac) over a stub body that
+   Phase 5 replaces.
 
-**Acceptance:** no token → 401; valid token + `system_admin` → passes; `restaurant_user`
-of another restaurant → 403; role without `analytics:read` → 403; core down → 503
-(cached permissions keep serving after first success).
+**Acceptance:** ✅ verified — all seven scenarios against the app + a disposable fake
+core double (fake core in /tmp, `api-key` enforced, owner ⇒ `analytics:read`,
+cashier ⇒ unrelated permission): no token ⇒ 401; member of another restaurant ⇒ 403;
+granted role (bearer) ⇒ 200; ungranted role (cookie) ⇒ 403; `system_admin` ⇒ 200
+bypass; core down + cached role ⇒ still 200; core down + uncached role ⇒ 503
+`"Core service unavailable"`; `X-CorrelationId` echoed on the response.
+
+**Cross-service change made here (not Phase 6):** dev `ACCESS_SECRET` bumped to
+`crave-dev-shared-access-secret-0001` (35 bytes) in all three services' local `.env`
+— .NET enforces the HS256 256-bit (32-byte) minimum that Node ignores, and the
+secret must match core's. Documented in `.env.example` + CLAUDE.md §8.
 
 ---
 

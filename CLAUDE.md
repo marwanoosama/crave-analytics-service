@@ -206,7 +206,7 @@ All env vars (UPPER_SNAKE, mirroring siblings; `.env.example` is the contract):
 | ---------------------------------- | ---------------------------------- |
 | `PORT`                             | `5000`                             |
 | `ASPNETCORE_ENVIRONMENT`           | `development`                      |
-| `ACCESS_SECRET`                    | required — MUST match core/order    |
+| `ACCESS_SECRET`                    | required — MUST match core/order; ≥32 bytes (HS256 minimum .NET enforces) |
 | `CORS_ORIGINS`                     | `http://localhost:3000`             |
 | `MONGO_URL`                        | `mongodb://localhost:27017`        |
 | `MONGO_DATABASE`                   | `crave_analytics`                   |
