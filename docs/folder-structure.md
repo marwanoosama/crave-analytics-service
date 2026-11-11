@@ -23,7 +23,6 @@ crave-analytics-service/
         ├── Crave.Analytics.Common/            # "pkg/" — app-agnostic, env-agnostic
         │   ├── Crave.Analytics.Common.csproj # refs: NOTHING (only MongoDB.Driver, RabbitMQ.Client)
         │   ├── Mongo/
-        │   │   ├── MongoConnectionFactory.cs   # (P1) IMongoClient from a connection string
         │   │   └── IndexEnsurer.cs             # (P1) generic idempotent EnsureIndexesAsync
         │   ├── Messaging/
         │   │   ├── AmqpConsumer.cs             # (P2) topology declare, DLQ, prefetch, manual ack,
@@ -43,6 +42,8 @@ crave-analytics-service/
         │   │   ├── AppException.cs             # (P0) AppError analogue
         │   │   ├── ErrorHandlerMiddleware.cs   # (P0) {error} envelope, operational/unknown split
         │   │   └── CorrelationIdMiddleware.cs  # (P0) X-CorrelationId echo/generate
+        │   ├── Mongo/
+        │   │   └── MongoServiceCollectionExtensions.cs  # (P1) AddMongo → singleton IMongoDatabase
         │   ├── Auth/
         │   │   ├── JwtUser.cs                  # (P4) typed claims record
         │   │   ├── JwtVerifier.cs              # (P4) HS256, cookie-then-bearer, MapInboundClaims=false

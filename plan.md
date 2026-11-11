@@ -61,27 +61,33 @@ cleanly.
 
 ## Phase 1 — Mongo persistence + indexes
 
-Goal: connection, typed documents, repositories, idempotent index bootstrap.
+Goal: connection, typed documents, repositories, idempotent index bootstrap. — ✅ done
 
-1. `Common/Mongo/MongoConnectionFactory.cs` — `IMongoClient` from a connection string.
-   **No collection names. No env.**
-2. `Common/Mongo/IndexEnsurer.cs` — generic `EnsureIndexesAsync(database, collectionName,
+1. ~~`Common/Mongo/MongoConnectionFactory.cs`~~ — dropped: the official driver is already
+   app-agnostic; `AddMongo` wraps `MongoClient` directly.
+2. ✅ `Common/Mongo/IndexEnsurer.cs` — generic `EnsureIndexesAsync(database, collectionName,
    models)`; idempotent (createIndex is a no-op for identical indexes).
-3. `Api/Modules/Analytics/Documents/RestaurantDayDocument.cs` — POCO,
+3. ✅ `Api/Modules/Analytics/Documents/RestaurantDayDocument.cs` — POCO,
    `[BsonElement]` snake_case (`restaurant_id`, `date`, `currency`, `orders_count`,
    `revenue_sum`, `delivery_ms_sum`, `delivery_ms_count`, `updated_at`).
-4. `Api/Modules/Analytics/Documents/EventIdDocument.cs` — `event_id`, `received_at`.
-5. `Api/Modules/Analytics/Repositories/Indexes.cs` — all declarations:
+4. ✅ `Api/Modules/Analytics/Documents/EventIdDocument.cs` — `event_id`, `received_at`.
+5. ✅ `Api/Modules/Analytics/Repositories/Indexes.cs` — all declarations:
    - `agg_restaurant_day`: unique `(restaurant_id, date)`; range `(date, restaurant_id)`.
    - `event_ids`: unique `event_id`; TTL `received_at` (`EVENT_DEDUPE_TTL_DAYS`).
    Each with its query-path comment.
-6. `Infrastructure` — `AddMongo(...)` extension registering `IMongoDatabase` from
-   `MONGO_URL`/`MONGO_DATABASE`.
-7. `Api/Program.cs` — ensure indexes on boot **before** starting the consumer.
-8. `Api/Health/HealthEndpoints.cs` — `GET /api/health` pinging Mongo (`200 {ok:true}` / 503).
+6. ✅ `Infrastructure/Mongo/MongoServiceCollectionExtensions.cs` — `AddMongo()` registering
+   `IMongoDatabase` (singleton) from `MONGO_URL`/`MONGO_DATABASE`.
+7. ✅ `Api/Program.cs` — ensure indexes on boot **before** starting the consumer.
+8. ✅ `Api/Health/HealthEndpoints.cs` — `GET /api/health` pinging Mongo (`200 {ok:true}` / 503,
+   2 s ping timeout).
 
-**Acceptance:** boot against local Mongo creates both collections with the four indexes;
-second boot is a no-op (no error); `/api/health` reflects Mongo availability.
+**Acceptance:** ✅ verified — boot against local Mongo created both collections with all four
+indexes (confirmed via `mongosh`: unique `restaurant_id_1_date_1`, `date_1_restaurant_id_1`,
+unique `event_id_1`, TTL `received_at` `expireAfterSeconds:604800`); second boot was a no-op
+(health 200, zero error-level logs); `GET /api/health` → `200 {"ok":true}` with Mongo up and
+`503 {"ok":false}` when Mongo died mid-run (throwaway mongod on port 27019, killed after boot);
+dead Mongo at boot → loud process exit (failure mode #2 in system-design.md — crash loop is the
+documented behavior).
 
 ---
 
