@@ -61,6 +61,8 @@ cleanly.
 
 ## Phase 1 — Mongo persistence + indexes
 
+insuring that when the app is run, mongodb indexes are created (indexes in mongo pretty much represents the whole schema, collections are not needed to say that we have a mongo schema, so ensuring the indexes are created is like ensuring migrations are commited in sql)
+
 Goal: connection, typed documents, repositories, idempotent index bootstrap. — ✅ done
 
 1. ~~`Common/Mongo/MongoConnectionFactory.cs`~~ — dropped: the official driver is already
@@ -94,29 +96,41 @@ documented behavior).
 ## Phase 2 — RabbitMQ consumer (dedupe + DLQ)
 
 Goal: the `order-service` inbound consumer ported to .NET — the exact
-`lib/core-events/consumer.ts` flow.
+`lib/core-events/consumer.ts` flow. — ✅ done
 
-1. `Common/Messaging/AmqpConsumer.cs` — `RabbitMQ.Client` v7 async wrapper: connect,
+1. ✅ `Common/Messaging/AmqpConsumer.cs` — `RabbitMQ.Client` v7 async wrapper: connect,
    declare topology (exchange, durable queue, bindings, DLX, DLQ, `x-dead-letter-exchange`
-   arg), prefetch, manual ack/nack, auto-reconnect with backoff. **No event types, no
-   envelope shapes — raw bytes + ack/nack callbacks only.**
-2. `Infrastructure/Events/EventEnvelope.cs` — `{eventId, eventType, occurredAt,
-   aggregateType, aggregateId, region, payload}` (System.Text.Json, case-insensitive).
-3. `Infrastructure/Events/IEventDeduper.cs` + `IEventHandler` + `EventHandlerRegistry`
+   arg), prefetch, manual ack/nack. **No event types, no envelope shapes — raw bytes +
+   ack/nack callbacks only.** Mid-run reconnects are the client's native
+   `AutomaticRecoveryEnabled`/`TopologyRecoveryEnabled` (reconnects re-assert topology —
+   no hand-rolled loop); boot-time unreachability is the caller's retry loop.
+2. ✅ `Common/Messaging/ConsumerOptions.cs` — record (url, exchange, queue, bindings, dlx,
+   dlq, prefetch); constructed from `Env` in `Program.cs` (Common stays env-agnostic).
+3. ✅ `Infrastructure/Events/EventEnvelope.cs` — record + `TryParse` (System.Text.Json,
+   case-insensitive); false when unparseable or missing `eventId`/`eventType`.
+4. ✅ `Infrastructure/Events/IEventDeduper.cs` + `IEventHandler.cs` + `EventHandlerRegistry.cs`
    — `MarkSeen` funnel, unknown-type log+ack-skip, handler dispatch.
-4. `Infrastructure/Events/OrderEventsConsumerService.cs` — `BackgroundService` hosting
-   `AmqpConsumer` with the consumer loop:
-   parse → invalid ⇒ DLQ · `MarkSeen` ⇒ dup ⇒ ack-skip · no handler ⇒ log+ack-skip ·
-   handler ⇒ ack on success / DLQ on failure.
-5. `Api/Modules/Analytics/Repositories/EventDeduper.cs` — `event_ids` insert; E11000 ⇒ seen.
-6. `Api/Program.cs` — register consumer + handlers, start hosted service (non-fatal if
-   Rabbit is down at boot — keep retrying).
-7. `scripts/publish-test-event.sh` — publish a raw envelope via the RabbitMQ management
-   API for smoke tests.
+5. ✅ `Infrastructure/Events/OrderEventsConsumerService.cs` — `BackgroundService` hosting
+   `AmqpConsumer` with the consumer loop: parse → invalid ⇒ DLQ · `MarkSeen` ⇒ dup ⇒
+   ack-skip · no handler ⇒ log+ack-skip · handler ⇒ ack on success / DLQ on failure.
+   5 s boot-retry backoff, non-fatal.
+6. ✅ `Api/Modules/Analytics/Repositories/EventDeduper.cs` — `event_ids` insert;
+   E11000 ⇒ seen.
+7. ✅ `Api/Program.cs` — `ConsumerOptions` from env, `AmqpConsumer` + `IEventDeduper` +
+   `EventHandlerRegistry` + `AddHostedService<OrderEventsConsumerService>`.
+8. ✅ `scripts/publish-test-event.sh` — publishes a full `order.placed` envelope via the
+   RabbitMQ management API (fresh uuid each run).
 
-**Acceptance:** publish a valid envelope → consumed (dedupe row inserted, acked);
-republish same `eventId` → ack-skip (no second row); unparseable body → routed to
-`analytics-service.order-events.dlq`; killing Rabbit → consumer reconnects when it's back.
+**Acceptance:** ✅ verified — publish valid envelope → `{"routed":true}` → "No handler for
+order.placed, acking" log + dedupe row in `event_ids` (empty registry acks, per CLAUDE.md
+§Idempotency); republish same `eventId` → "Duplicate event ack-skipped", still 1 row;
+payload `this is not json` → "Unparseable envelope" → message landed in
+`analytics-service.order-events.dlq` (routing key `order.placed` preserved);
+`RABBITMQ_URL` pointing at a dead port → app boots healthy, 3 retry warnings at 5 s backoff,
+health stays 200 (non-fatal at boot, per system-design.md failure mode #1). Mid-run broker
+bounce could not be exercised locally (rabbitmqctl lacks node access, sudo requires
+password) — covered by the client's native automatic recovery; to verify by hand:
+`sudo systemctl restart rabbitmq-server` while the app runs, then watch for re-consumption.
 
 ---
 

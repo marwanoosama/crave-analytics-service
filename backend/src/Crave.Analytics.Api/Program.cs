@@ -1,6 +1,8 @@
 using Crave.Analytics.Api.Health;
 using Crave.Analytics.Api.Modules.Analytics.Repositories;
+using Crave.Analytics.Common.Messaging;
 using Crave.Analytics.Infrastructure.Config;
+using Crave.Analytics.Infrastructure.Events;
 using Crave.Analytics.Infrastructure.Http;
 using Crave.Analytics.Infrastructure.Mongo;
 using MongoDB.Driver;
@@ -19,6 +21,13 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 builder.Services.AddMongo();
 builder.Services.AddTransient<ErrorHandlerMiddleware>();
 builder.Services.AddTransient<CorrelationIdMiddleware>();
+builder.Services.AddSingleton(new ConsumerOptions(
+    Env.RabbitUrl, Env.RabbitExchange, Env.RabbitQueue, Env.RabbitBindings,
+    Env.RabbitDlx, Env.RabbitDlq, (ushort)Env.RabbitPrefetch));
+builder.Services.AddSingleton<AmqpConsumer>();
+builder.Services.AddSingleton<IEventDeduper, EventDeduper>();
+builder.Services.AddSingleton<EventHandlerRegistry>();
+builder.Services.AddHostedService<OrderEventsConsumerService>();
 
 var app = builder.Build();
 
