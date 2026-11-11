@@ -1,4 +1,5 @@
 using Crave.Analytics.Api.Health;
+using Crave.Analytics.Api.Modules.Analytics.Endpoints;
 using Crave.Analytics.Api.Modules.Analytics.Repositories;
 using Crave.Analytics.Api.Modules.Analytics.Services;
 using Crave.Analytics.Common.Messaging;
@@ -40,6 +41,7 @@ builder.Services.AddSingleton(new ConsumerOptions(
 builder.Services.AddSingleton<AmqpConsumer>();
 builder.Services.AddSingleton<IEventDeduper, EventDeduper>();
 builder.Services.AddSingleton<RestaurantDayRepository>();
+builder.Services.AddSingleton<AnalyticsService>();
 builder.Services.AddSingleton<IEventHandler, OrderPlacedHandler>();
 builder.Services.AddSingleton<EventHandlerRegistry>();
 builder.Services.AddHostedService<OrderEventsConsumerService>();
@@ -54,14 +56,7 @@ app.UseCors();
 
 app.MapGet("/", () => ApiResponse.SendSuccess("crave-analytics-service"));
 app.MapHealthEndpoints();
-
-// Phase 5 replaces this stub body with the real read path; the filter chain
-// is final (authenticate → restaurant member → rbac).
-app.MapGet("/api/analytics/restaurants/{restaurantId}/days", () =>
-        ApiResponse.SendSuccess("phase 4 filter chain wired"))
-    .AddEndpointFilter<AuthenticateFilter>()
-    .AddEndpointFilter<RequireRestaurantMemberFilter>()
-    .AddEndpointFilter<RbacFilter>();
+app.MapAnalyticsEndpoints();
 
 // Index bootstrap is the DDL migration — fail fast if Mongo is unreachable.
 await Indexes.EnsureAsync(app.Services.GetRequiredService<IMongoDatabase>());

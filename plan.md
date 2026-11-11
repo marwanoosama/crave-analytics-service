@@ -210,25 +210,34 @@ secret must match core's. Documented in `.env.example` + CLAUDE.md §8.
 
 ## Phase 5 — GET endpoint end-to-end
 
-Goal: the single read endpoint, full contract.
+Goal: the single read endpoint, full contract. — ✅ done
 
-1. `Api/Modules/Analytics/Dtos/RestaurantDayResponseDto.cs` —
-   `{date, ordersCount, revenueMinor, currency, avgOrderMinor}`.
-2. `Api/Modules/Analytics/Services/AnalyticsService.cs` — validates `from`/`to`
-   (required, `YYYY-MM-DD`, `from <= to`, range ≤ 366 days), queries by
-   `(restaurant_id, date range)` ascending, derives `avgOrderMinor =
-   floor(revenue_sum / orders_count)` — never stored.
-3. `Api/Modules/Analytics/Repositories/RestaurantDayRepository.cs` — add the range read
-   with an explicit projection backed by the `(date, restaurant_id)` index.
-4. `Api/Modules/Analytics/Endpoints/AnalyticsEndpoints.cs` —
-   `GET /api/analytics/restaurants/{restaurantId}/days?from=&to=` wired with the filter
-   chain from Phase 4; `Api/Modules/Analytics/Errors.cs` stable errors.
-5. Finalize `docs/api-contracts.md` against the real implementation.
+1. ✅ `Api/Modules/Analytics/Dtos/RestaurantDayResponseDto.cs` —
+   `{date, ordersCount, revenueMinor, currency, avgOrderMinor}` (camelCase JSON).
+2. ✅ `Api/Modules/Analytics/Services/AnalyticsService.cs` — validates `from`/`to`
+   (required, strict `yyyy-MM-dd` parse, `from <= to`, ≤ 366 rows), queries by
+   `(restaurant_id, date range)` ascending, derives
+   `avgOrderMinor = revenueMinor / ordersCount` per row (integer division floors —
+   never stored).
+3. ✅ `Api/Modules/Analytics/Repositories/RestaurantDayRepository.cs` — range read
+   added: `SortBy(date)` + explicit projection (`date, orders_count, revenue_sum,
+   currency` only) backed by the `(date, restaurant_id)` index.
+4. ✅ `Api/Modules/Analytics/Endpoints/AnalyticsEndpoints.cs` —
+   `GET /api/analytics/restaurants/{restaurantId}/days?from=&to=` with the final
+   filter chain; request bound via `[AsParameters]` into
+   `Dtos/RestaurantDaysRequestDto` (route + query); `Api/Modules/Analytics/Errors.cs`
+   stable `AppException` instances (the siblings' Errors.ts convention). Program.cs
+   stub replaced by `MapAnalyticsEndpoints()`.
+5. ✅ `docs/api-contracts.md` — checked against the implementation; no drift found
+   (error messages, row shape, ordering, caps all match).
 
-**Acceptance:** seeded events → endpoint returns documented payload (ascending dates,
-derived averages); missing/invalid `from`/`to` → 400; `from > to` / > 366 days → 400;
-unknown restaurant → `200` with empty `data` (analytics has no restaurant registry —
-absence is not an error); RBAC denials per Phase 4.
+**Acceptance:** ✅ verified — seeded two days for restaurant 42 (2026-11-10: 2 orders /
+150,000 minor, 2026-11-11: 2 orders / 300,000 minor from earlier phases) → 200 with
+rows ascending by date and derived averages (`75000`, `150000`); missing params,
+unparseable date, inverted range, and a 367-row range ⇒ the four documented 400
+messages; 366-row boundary (365-day diff) ⇒ 200; unknown restaurant via `system_admin`
+⇒ 200 `{success:true, data:[]}`; no token ⇒ 401; owner of 42 (granted `analytics:read`
+by the fake core double) ⇒ 200, cashier ⇒ 403 (RBAC carried over from Phase 4).
 
 ---
 
