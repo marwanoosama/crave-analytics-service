@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Crave.Analytics.Api" type="DotNetProject" factoryName=".NET Project">
+    <option name="EXE_PATH" value="$PROJECT_DIR$/src/Crave.Analytics.Api/bin/Debug/net10.0/Crave.Analytics.Api" />
+    <option name="PROGRAM_PARAMETERS" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/Crave.Analytics.Api" />
+    <option name="PROJECT_PATH" value="$PROJECT_DIR$/src/Crave.Analytics.Api/Crave.Analytics.Api.csproj" />
+    <option name="PROJECT_TFM" value="net10.0" />
+    <envs>
+      <env name="PORT" value="5000" />
+      <env name="ASPNETCORE_ENVIRONMENT" value="development" />
+      <env name="ACCESS_SECRET" value="change-me" />
+      <env name="CORS_ORIGINS" value="http://localhost:3000" />
+      <env name="MONGO_URL" value="mongodb://localhost:27017" />
+      <env name="MONGO_DATABASE" value="crave_analytics" />
+      <env name="RABBITMQ_URL" value="amqp://guest:guest@localhost:5672" />
+      <env name="CORE_SERVICE_BASE_URL" value="http://localhost:3000" />
+      <env name="CORE_INTERNAL_API_KEY" value="change-me" />
+    </envs>
+    <method v="2">
+      <option name="Build" enabled="true" />
+    </method>
+  </configuration>
+</component>

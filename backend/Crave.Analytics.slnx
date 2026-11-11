@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Crave.Analytics.Api/Crave.Analytics.Api.csproj" />
+    <Project Path="src/Crave.Analytics.Common/Crave.Analytics.Common.csproj" />
+    <Project Path="src/Crave.Analytics.Infrastructure/Crave.Analytics.Infrastructure.csproj" />
+  </Folder>
+</Solution>
