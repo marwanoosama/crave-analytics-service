@@ -1,0 +1,11 @@
+meta {
+  name: Days (no token — 401)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days?from={{from}}&to={{to}}
+  body: none
+  auth: none
+}

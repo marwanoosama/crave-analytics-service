@@ -1,0 +1,15 @@
+meta {
+  name: Days (owner of restaurant 7 — 403)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days?from={{from}}&to={{to}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{otherOwner7Token}}
+}

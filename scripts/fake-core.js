@@ -1,6 +1,6 @@
 // Disposable core-service double for local testing of analytics-service.
 // Implements GET /api/internal/rbac/permissions?role= with api-key check.
-// Grants: owner → analytics:read; cashier → an unrelated permission;
+// Grants: owner → analytics:read; staff → an unrelated permission;
 // everyone else → [] (denied). NOT the real core-service.
 require('http').createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -14,7 +14,7 @@ require('http').createServer((req, res) => {
     }
     const role = url.searchParams.get('role') ?? '';
     const permissions = role === 'owner' ? ['analytics:read']
-        : role === 'cashier' ? ['core:product:read']
+        : role === 'staff' ? ['core:product:read']
         : [];
     console.log(`rbac lookup role=${role}`);
     res.writeHead(200, {'content-type': 'application/json'});

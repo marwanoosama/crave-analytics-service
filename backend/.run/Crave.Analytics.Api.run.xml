@@ -14,7 +14,7 @@
       <env name="MONGO_DATABASE" value="crave_analytics" />
       <env name="RABBITMQ_URL" value="amqp://guest:guest@localhost:5672" />
       <env name="CORE_SERVICE_BASE_URL" value="http://localhost:3000" />
-      <env name="CORE_INTERNAL_API_KEY" value="change-me" />
+      <env name="CORE_INTERNAL_API_KEY" value="dev-internal-api-key" />
     </envs>
     <method v="2">
       <option name="Build" enabled="true" />

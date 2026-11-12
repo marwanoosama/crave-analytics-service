@@ -1,0 +1,15 @@
+meta {
+  name: Days (unknown restaurant — 200 empty)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/999/days?from={{from}}&to={{to}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}

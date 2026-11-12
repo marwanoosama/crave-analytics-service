@@ -1,0 +1,15 @@
+meta {
+  name: Days (staff42 via cookie — 403)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days?from={{from}}&to={{to}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: access_token={{staff42Token}}
+}

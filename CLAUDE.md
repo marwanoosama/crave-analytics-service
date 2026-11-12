@@ -72,7 +72,8 @@ The compiler enforces this: `Common` references nothing; `Infrastructure` refere
 The only sanctioned composition point is `Api/Program.cs` (the .NET composition root, the exact
 analogue of the Node services' "only `container.ts` may see app/" exception).
 
-- **`Common`** knows how to connect (Mongo connection factory, idempotent index-ensure helper,
+- **`Common`** knows how to connect (Mongo DI wiring lives in Infrastructure's `AddMongo`,
+  idempotent index-ensure helper in `Common/Mongo`,
   RabbitMQ consumer wrapper with topology/DLQ/prefetch/manual-ack, retry/money/time utils). It must
   **never** contain collection names, event type strings, or envelope shapes.
 - **`Infrastructure`** wires `Common` to the environment: `Env.cs`, correlation + error-handling

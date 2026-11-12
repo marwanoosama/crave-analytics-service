@@ -6,3 +6,6 @@ obj/
 .idea/
 .vscode/
 .vs/
+
+# minted dev tokens
+scripts/.dev-tokens.env

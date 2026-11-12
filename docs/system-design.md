@@ -254,24 +254,26 @@ after TTL expiry) — both in the failure-mode table with their mitigations.
 
 ## 7. Local run
 
-Prereqs: .NET 10 SDK, Docker (Mongo + RabbitMQ), and for full end-to-end: core-service
-and order-service running with matching `ACCESS_SECRET` / internal API key.
+Prereqs: .NET 10 SDK, plus running infrastructure: **MongoDB** (27017), **RabbitMQ**
+(5672 + management 15672) — local services or containers, either works. For full
+end-to-end: **PostgreSQL** (5432), **Redis** (6379), and core-service + order-service
+running (`npm run dev` in each `backend/`, order needs `npm run worker` for its
+outbox drain) with matching `ACCESS_SECRET` and internal API key.
 
 ```bash
-# 1. infrastructure
-docker run -d --name crave-mongo -p 27017:27017 mongo:7
-docker run -d --name crave-rabbit -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+# 1. env
+cp .env.example .env          # ACCESS_SECRET must match core/order; >= 32 bytes
 
-# 2. env
-cp .env.example .env          # fill ACCESS_SECRET, CORE_INTERNAL_API_KEY
-
-# 3. run (env vars come from the process environment — docker-compose env_file or export)
-set -a; source .env; set +a   # or: export $(grep -v '^#' .env | xargs)
+# 2. run (env vars come from the process environment)
+set -a; source .env; set +a
 cd backend && dotnet run --project src/Crave.Analytics.Api
 
-# 4. smoke
+# 3. smoke — health, then the local test rig (see plan.md Phase 4/5 evidence)
 curl -s localhost:5000/api/health
-./scripts/publish-test-event.sh    # Phase 2: publish a raw order.placed envelope
+scripts/test-local.sh                 # full HTTP scenario suite (10 checks)
+node scripts/mint-dev-tokens.js       # dev JWTs for Bruno (scripts/.dev-tokens.env)
+node scripts/fake-core.js &           # optional: RBAC double when core-service is down
+scripts/publish-test-event.sh         # publish a raw order.placed envelope
 ```
 
 The consumer is non-fatal at boot when RabbitMQ is down (it keeps retrying with

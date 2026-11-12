@@ -1,0 +1,15 @@
+meta {
+  name: Days (admin — bypass)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days?from={{from}}&to={{to}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}

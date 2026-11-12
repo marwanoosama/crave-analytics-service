@@ -28,8 +28,8 @@ const tokens = {
         restaurantId: 42, restaurantRole: 'owner'}),
     otherOwner7: sign({userId: 3, email: 'other@crave.test', role: 'restaurant_user',
         restaurantId: 7, restaurantRole: 'owner'}),
-    cashier42: sign({userId: 4, email: 'cashier@crave.test', role: 'restaurant_user',
-        restaurantId: 42, restaurantRole: 'cashier'}),
+    staff42: sign({userId: 4, email: 'staff@crave.test', role: 'restaurant_user',
+        restaurantId: 42, restaurantRole: 'staff'}),
 };
 
 const out = path.join(__dirname, '.dev-tokens.env');

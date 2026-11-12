@@ -1,0 +1,15 @@
+meta {
+  name: Days (missing params — 400)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}

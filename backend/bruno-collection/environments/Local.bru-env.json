@@ -1,0 +1,33 @@
+{
+  "name": "Local",
+  "variables": [
+    {
+      "name": "adminToken",
+      "type": "text",
+      "value": "",
+      "enabled": true,
+      "localValue": null
+    },
+    {
+      "name": "owner42Token",
+      "type": "text",
+      "value": "",
+      "enabled": true,
+      "localValue": null
+    },
+    {
+      "name": "staff42Token",
+      "type": "text",
+      "value": "",
+      "enabled": true,
+      "localValue": null
+    },
+    {
+      "name": "otherOwner7Token",
+      "type": "text",
+      "value": "",
+      "enabled": true,
+      "localValue": null
+    }
+  ]
+}

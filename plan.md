@@ -243,30 +243,59 @@ by the fake core double) ⇒ 200, cashier ⇒ 403 (RBAC carried over from Phase 
 
 ## Phase 6 — Cross-service change + docs final pass
 
-1. **core-service migration** — `seed_analytics_permissions`: insert permission
-   `('analytics','read')` + grant to `owner` and `branch_manager`
-   (`ON CONFLICT DO NOTHING`, mirroring
-   `20260418000001_seed_order_service_permissions.ts`). Run core's migrations.
-2. Verify the full happy path: place a real order (COD and online) against
-   core+order services → `order.placed` lands → aggregate upserted → GET returns it.
-3. Docs final pass: `CLAUDE.md`, `plan.md` (tick phases), `docs/folder-structure.md`,
-   `docs/system-design.md`, `docs/api-contracts.md` — must match the shipped code.
-4. Local run book: `.env.example` values + `docker compose` dependencies (Mongo,
-   RabbitMQ) documented in `docs/system-design.md` §Local run.
+1. ✅ **core-service migration** — `20261112000001_seed_analytics_permissions.ts`:
+   inserts permission `('analytics','read')` + grants it to `owner` and
+   `branch_manager` (`ON CONFLICT DO NOTHING`, mirroring
+   `20260418000001_seed_order_service_permissions.ts`). Ran core's `npm run migrate`;
+   verified in DB: `owner:analytics:read`, `branch_manager:analytics:read`.
+2. ✅ **Full happy path with real services** (core :3000 + order :4000 + worker +
+   analytics :5000, no docker — local services):
+   - COD: real customer login → `POST /orders` (branch 1, product 20) →
+     `status:"placed"` → `order.placed` in `events_outbox` → drained by order's
+     **worker** (`npm run worker`) → consumed by analytics →
+     `agg_restaurant_day` restaurant 1 / 2026-11-12 `orders_count:1, revenue_sum:8500`.
+   - Online: real Kashier-style order → `pending_payment` →
+     `npx tsx play/pay-webhook.ts <publicId>` → `placed` → second event →
+     merged row `orders_count:2, revenue_sum:17000`.
+   - Read: GET with a **real** core-issued owner JWT → real RBAC lookup
+     (`role=owner` → `analytics:read` from the migration) → 200 with the live row
+     and derived `avgOrderMinor: 8500`.
+3. ✅ **Cross-service bug fix (found by this e2e test):** core's
+   `product-branch-details` columns are `bigint` ⇒ pg returns ids as strings, but
+   `toEntity` never coerced — reserve/release built a Map keyed on string ids and
+   looked up with number ids ⇒ every order failed `OutOfStock: available 0`.
+   Fixed by coercing in the repo's `toEntity` (single point); reserve + release
+   verified against the DB.
+4. ✅ **Env alignment audit across the three services** (nothing touched docker):
+   `ACCESS_SECRET` = `crave-dev-shared-access-secret-0001` in all three ✅;
+   `RABBITMQ_URL` identical ✅; analytics' `RABBITMQ_ORDER_EVENTS_EXCHANGE=order.events`
+   matches order's outbound exchange var ✅; `CORE_SERVICE_BASE_URL=http://localhost:3000`
+   matches core's `PORT` ✅; ports 3000/4000/5000 + 27017/5432/6379 disjoint ✅;
+   fixed one misalignment: analytics `CORE_INTERNAL_API_KEY` was `change-me`, core's
+   `INTERNAL_API_KEY` is `dev-internal-api-key` — corrected in `.env`, `.env.example`
+   and `.run/Crave.Analytics.Api.run.xml`.
+5. ✅ Docs final pass: `docs/api-contracts.md` verified against the implementation in
+   Phase 5 (no drift); `CLAUDE.md` §3 corrected (no MongoConnectionFactory —
+   `AddMongo` in Infrastructure); `docs/system-design.md` §7 Local run rewritten for
+   the real local setup (local services, order worker requirement, test scripts).
+6. ✅ `docs/folder-structure.md` — matches the shipped tree (Auth/, CoreClient/,
+   Events/, Mongo/, scripts/ verified file-by-file during Phases 2–5).
 
-**Acceptance:** everything above passes; a fresh clone + `dotnet run` boots green with
-only `.env` filled in.
+**Acceptance:** ✅ everything above passes. Bruno collection (`backend/bruno-collection/`)
++ scripts (`test-local.sh`, `mint-dev-tokens.js`, `fake-core.js`,
+`publish-test-event.sh`) let a fresh clone test HTTP + event paths with only `.env`
+filled.
 
 ---
 
 ## Build order summary
 
 ```
-Phase 0  scaffold + cross-cutting infra          (runnable app)
-Phase 1  mongo + indexes                        (persistence ready)
-Phase 2  rabbitmq consumer + dedupe + DLQ       (events flowing)
-Phase 3  order.placed handler + upsert          (aggregates filling)
-Phase 4  auth + rbac + core-client              (endpoint secured)
-Phase 5  GET endpoint                           (service complete)
-Phase 6  core permission seed + docs            (platform complete)
+Phase 0  scaffold + cross-cutting infra          (runnable app)        ✅
+Phase 1  mongo + indexes                        (persistence ready)   ✅
+Phase 2  rabbitmq consumer + dedupe + DLQ       (events flowing)      ✅
+Phase 3  order.placed handler + upsert          (aggregates filling)  ✅
+Phase 4  auth + rbac + core-client              (endpoint secured)    ✅
+Phase 5  GET endpoint                           (service complete)    ✅
+Phase 6  core permission seed + docs            (platform complete)   ✅
 ```

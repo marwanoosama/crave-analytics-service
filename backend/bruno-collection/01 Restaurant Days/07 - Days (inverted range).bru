@@ -1,0 +1,15 @@
+meta {
+  name: Days (inverted range — 400)
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{analyticsBase}}/api/analytics/restaurants/{{restaurantId}}/days?from=2026-11-12&to=2026-11-10
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
